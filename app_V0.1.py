@@ -1,20 +1,21 @@
 import streamlit as st
-from transformers import pipeline
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from PIL import Image
-import io
 import torch
-import streamlit as st
-from transformers import pipeline
-from PIL import Image
 
 # 设置页面
 st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 
-# 缓存 OCR pipeline
+# 缓存 processor 和 model（避免每次加载）
 @st.cache_resource
-def load_ocr():
-    # 使用 TrOCR 基础版（印刷体）；如果内存小可换 "microsoft/trocr-small-printed"
-    return pipeline("image-text-to-text", model="microsoft/trocr-base-printed")
+def load_ocr_model():
+    # 加载处理器和模型
+    processor = TrOCRProcessor.from_pretrained('microsoft/trocr-base-printed')
+    model = VisionEncoderDecoderModel.from_pretrained('microsoft/trocr-base-printed')
+    # 如果有 GPU 则移到 GPU，否则留在 CPU
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    return processor, model, device
 
 def main():
     st.title("📷 数学导师：拍照识题")
@@ -23,14 +24,19 @@ def main():
     uploaded_file = st.file_uploader("选择图片", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        image = Image.open(uploaded_file)
+        image = Image.open(uploaded_file).convert("RGB")  # 确保 RGB 模式
         st.image(image, caption="上传的题目", use_column_width=True)
 
         with st.spinner("正在识别题目..."):
-            ocr = load_ocr()
-            # pipeline 直接接收 PIL Image
-            result = ocr(image)
-            recognized_text = result[0]['generated_text']
+            processor, model, device = load_ocr_model()
+            # 处理图片：得到 pixel_values
+            pixel_values = processor(images=image, return_tensors="pt").pixel_values
+            # 将 tensor 移到相同设备
+            pixel_values = pixel_values.to(device)
+            # 生成
+            generated_ids = model.generate(pixel_values)
+            # 解码
+            recognized_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
         st.subheader("识别结果")
         edited_text = st.text_area("可手动编辑修正", recognized_text, height=150)
