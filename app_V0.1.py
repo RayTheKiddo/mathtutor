@@ -1,9 +1,9 @@
 import streamlit as st
 from transformers import pipeline
 from PIL import Image
-import io
 import torch
-from transformers import AutoModelForCausalLM
+from transformers import AutoProcessor, AutoModelForImageTextToText
+import tempfile
 
 torch.compiler.set_stance("force_eager")
 
@@ -13,13 +13,53 @@ st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 # 缓存 OCR 模型，避免重复加载
 @st.cache_resource
 def load_ocr_model():
-    # 如果你遇到内存问题，把模型换成 "microsoft/trocr-small-printed"
-    return AutoModelForCausalLM.from_pretrained(
-    "tiiuae/Falcon-OCR",
-    trust_remote_code=True,
-    torch_dtype=torch.float32,
-    device_map="cpu"
+    MODEL_PATH = "zai-org/GLM-OCR"
+    processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
+    model = AutoModelForImageTextToText.from_pretrained(
+        MODEL_PATH,
+        torch_dtype=torch.float32,
+        device_map="cpu",
+        trust_remote_code=True
     )
+
+    class GLMOCRWrapper:
+        def __init__(self, processor, model):
+            self.processor = processor
+            self.model = model
+
+        def generate(self, image, compile=False):
+            # 将 PIL Image 保存为临时文件，GLM-OCR 需要文件路径或 URL
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                image.save(tmp.name)
+                tmp_path = tmp.name
+
+            try:
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "url": tmp_path}
+                        ],
+                    }
+                ]
+                inputs = self.processor.apply_chat_template(
+                    messages,
+                    tokenize=True,
+                    add_generation_prompt=True,
+                    return_dict=True,
+                    return_tensors="pt"
+                ).to(self.model.device)
+                inputs.pop("token_type_ids", None)
+                generated_ids = self.model.generate(**inputs, max_new_tokens=8192)
+                output_text = self.processor.decode(
+                    generated_ids[0][inputs["input_ids"].shape[1]:],
+                    skip_special_tokens=False
+                )
+                return [{"generated_text": output_text}]
+            finally:
+                os.unlink(tmp_path)
+
+    return GLMOCRWrapper(processor, model)
 
 def main():
     st.title("📷 数学导师：拍照识题")
