@@ -18,7 +18,7 @@ def load_ocr_model():
     "tiiuae/Falcon-OCR",
     trust_remote_code=True,
     torch_dtype=torch.float32,
-    device_map=cpu
+    device_map="cpu"
     )
 
 def main():
