@@ -17,9 +17,9 @@ def load_ocr_model():
     return AutoModelForCausalLM.from_pretrained(
     "tiiuae/Falcon-OCR",
     trust_remote_code=True,
-    torch_dtype=torch.float16,
-    device_map=None
-).cuda()
+    torch_dtype=torch.float32,
+    device_map=cpu
+    )
 
 def main():
     st.title("📷 数学导师：拍照识题")
