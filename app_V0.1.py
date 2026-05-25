@@ -10,7 +10,7 @@ st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 
 # 缓存 OCR 模型，避免重复加载
 @st.cache_resource
-def load_ocr_pipeline():
+def load_ocr_model():
     return pipeline("image-to-text", model="tiiuae/Falcon-OCR", trust_remote_code=True)
 
 def main():
