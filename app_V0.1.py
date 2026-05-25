@@ -5,6 +5,8 @@ import io
 import torch
 from transformers import AutoModelForCausalLM
 
+torch.compiler.set_stance("force_eager")
+
 # 设置页面标题
 st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 
@@ -15,9 +17,9 @@ def load_ocr_model():
     return AutoModelForCausalLM.from_pretrained(
     "tiiuae/Falcon-OCR",
     trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
-    device_map="auto",     # 自动选择设备（通常是CPU）
-)
+    torch_dtype=torch.float16,
+    device_map=None
+).cuda()
 
 def main():
     st.title("📷 数学导师：拍照识题")
@@ -34,7 +36,7 @@ def main():
         # 2. 调用OCR
         with st.spinner("正在识别题目..."):
             ocr = load_ocr_model()
-            result = ocr.generate(img)
+            result = ocr.generate(image, compile=False)
             recognized_text = result[0]['generated_text']
         
         # 3. 显示识别结果，并允许用户手动修正
