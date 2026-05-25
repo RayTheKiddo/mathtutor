@@ -14,7 +14,7 @@ st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 @st.cache_resource
 def load_ocr():
     # 使用 TrOCR 基础版（印刷体）；如果内存小可换 "microsoft/trocr-small-printed"
-    return pipeline("image-to-text", model="microsoft/trocr-base-printed")
+    return pipeline("image-text-to-text", model="microsoft/trocr-base-printed")
 
 def main():
     st.title("📷 数学导师：拍照识题")
