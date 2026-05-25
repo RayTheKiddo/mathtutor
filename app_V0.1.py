@@ -36,7 +36,7 @@ def main():
             ocr = load_ocr_model()
             # 将图片转为字节流（似乎不用）
             # img_bytes = uploaded_file.getvalue()
-            result = ocr.generate(image)
+            result = ocr.generate(image, compile=False)
             recognized_text = result[0]['generated_text']
         
         # 3. 显示识别结果，并允许用户手动修正
