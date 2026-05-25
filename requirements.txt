@@ -2,3 +2,5 @@ streamlit
 transformers
 torch
 pillow
+einops
+torchvision
