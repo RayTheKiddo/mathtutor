@@ -12,12 +12,7 @@ st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 @st.cache_resource
 def load_ocr_model():
     # 如果你遇到内存问题，把模型换成 "microsoft/trocr-small-printed"
-    return AutoModelForCausalLM.from_pretrained(
-    "tiiuae/Falcon-OCR",
-    trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
-    device_map="auto",
-)
+    return pipeline("image-to-text", model="microsoft/trocr-base-printed")
 
 def main():
     st.title("📷 数学导师：拍照识题")
@@ -34,9 +29,8 @@ def main():
         # 2. 调用OCR
         with st.spinner("正在识别题目..."):
             ocr = load_ocr_model()
-            # 将图片转为字节流（似乎不用）
-            # img_bytes = uploaded_file.getvalue()
-            result = ocr.generate(image, compile=False)
+            # pipeline 直接接收 PIL Image
+            result = ocr(image)
             recognized_text = result[0]['generated_text']
         
         # 3. 显示识别结果，并允许用户手动修正
