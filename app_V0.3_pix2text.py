@@ -1,5 +1,5 @@
 import streamlit as st
-from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+from transformers import AutoTokenizer, AutoModelForImageTextToText
 from PIL import Image
 import torch
 
@@ -7,8 +7,8 @@ st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 
 @st.cache_resource
 def load_ocr_model():
-    processor = TrOCRProcessor.from_pretrained("AbteeXAILab/lumynax-ocr-trocr-large-handwritten")
-    model = VisionEncoderDecoderModel.from_pretrained("AbteeXAILab/lumynax-ocr-trocr-large-handwritten")
+    processor = AutoTokenizer.from_pretrained("breezedeus/pix2text-mfr")
+    model = AutoModelForImageTextToText.from_pretrained("breezedeus/pix2text-mfr")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     return processor, model, device
