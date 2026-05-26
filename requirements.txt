@@ -5,3 +5,4 @@ torch>=2.5.0
 torchvision>=0.20.0
 transformers>=4.51.3
 accelerate>=1.6.0
+pix2text>=1.1
