@@ -6,3 +6,4 @@ torchvision>=0.20.0
 transformers>=4.51.3
 accelerate>=1.6.0
 pix2text>=1.1
+optimum[onnxruntime]>=1.21.0
