@@ -1,18 +1,14 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForImageTextToText
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from PIL import Image
 import torch
 
-# 设置页面
 st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 
-# 缓存 processor 和 model（避免每次加载）
 @st.cache_resource
 def load_ocr_model():
-    # 加载处理器和模型
-    processor = AutoTokenizer.from_pretrained("AbteeXAILab/lumynax-ocr-trocr-large-handwritten")
-    model = AutoModelForImageTextToText.from_pretrained("AbteeXAILab/lumynax-ocr-trocr-large-handwritten")
-    # 如果有 GPU 则移到 GPU，否则留在 CPU
+    processor = TrOCRProcessor.from_pretrained("AbteeXAILab/lumynax-ocr-trocr-large-handwritten")
+    model = VisionEncoderDecoderModel.from_pretrained("AbteeXAILab/lumynax-ocr-trocr-large-handwritten")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     return processor, model, device
@@ -24,18 +20,15 @@ def main():
     uploaded_file = st.file_uploader("选择图片", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        image = Image.open(uploaded_file).convert("RGB")  # 确保 RGB 模式
+        image = Image.open(uploaded_file).convert("RGB")
         st.image(image, caption="上传的题目", use_column_width=True)
 
         with st.spinner("正在识别题目..."):
             processor, model, device = load_ocr_model()
-            # 处理图片：得到 pixel_values
-            pixel_values = processor.image_processor(images=image, return_tensors="pt").pixel_values
-            # 将 tensor 移到相同设备
+            # 直接调用 processor，它会自动将图片转为模型需要的 pixel_values
+            pixel_values = processor(images=image, return_tensors="pt").pixel_values
             pixel_values = pixel_values.to(device)
-            # 生成
             generated_ids = model.generate(pixel_values)
-            # 解码
             recognized_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
         st.subheader("识别结果")
