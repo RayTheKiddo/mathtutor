@@ -1,5 +1,5 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForImageTextToText
+from pix2text import Pix2Text, merge_line_texts
 from PIL import Image
 import torch
 
@@ -7,11 +7,8 @@ st.set_page_config(page_title="数学导师 - OCR识别", layout="centered")
 
 @st.cache_resource
 def load_ocr_model():
-    processor = AutoTokenizer.from_pretrained("breezedeus/pix2text-mfr")
-    model = AutoModelForImageTextToText.from_pretrained("breezedeus/pix2text-mfr")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
-    return processor, model, device
+    p2t = Pix2Text.from_config()
+    return p2t
 
 def main():
     st.title("📷 数学导师：拍照识题")
@@ -24,12 +21,9 @@ def main():
         st.image(image, caption="上传的题目", use_column_width=True)
 
         with st.spinner("正在识别题目..."):
-            processor, model, device = load_ocr_model()
-            # 直接调用 processor，它会自动将图片转为模型需要的 pixel_values
-            pixel_values = processor(images=image, return_tensors="pt").pixel_values
-            pixel_values = pixel_values.to(device)
-            generated_ids = model.generate(pixel_values)
-            recognized_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+            p2t = load_ocr_model()
+            # 识别图片中的文字/公式
+            recognized_text = p2t.recognize(image, file_type='text_formula', return_text=True)  # recognize mixed images
 
         st.subheader("识别结果")
         edited_text = st.text_area("可手动编辑修正", recognized_text, height=150)
