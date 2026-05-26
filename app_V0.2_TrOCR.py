@@ -30,7 +30,7 @@ def main():
         with st.spinner("正在识别题目..."):
             processor, model, device = load_ocr_model()
             # 处理图片：得到 pixel_values
-            pixel_values = processor(images=image, return_tensors="pt").pixel_values
+            pixel_values = processor.image_processor(images=image, return_tensors="pt").pixel_values
             # 将 tensor 移到相同设备
             pixel_values = pixel_values.to(device)
             # 生成
