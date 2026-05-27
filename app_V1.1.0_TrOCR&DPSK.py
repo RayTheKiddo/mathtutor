@@ -48,7 +48,7 @@ except:
 # 改成你自己的 fine-tuned model
 MODEL_NAME = "microsoft/trocr-small-handwritten"
 
-DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-V4-Pro:novita"
+DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-V4-Pro"
 
 MAX_NEW_TOKENS = 128
 
