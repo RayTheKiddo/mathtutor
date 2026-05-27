@@ -46,7 +46,7 @@ except:
 # =========================================================
 
 # 改成你自己的 fine-tuned model
-MODEL_NAME = "YOUR_USERNAME/YOUR_FINETUNED_MODEL"
+MODEL_NAME = "microsoft/trocr-small-handwritten"
 
 DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-V4-Pro:novita"
 
