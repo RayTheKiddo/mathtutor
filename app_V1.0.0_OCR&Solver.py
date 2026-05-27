@@ -1,7 +1,6 @@
 import streamlit as st
 from pix2text import Pix2Text
 from PIL import Image
-import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # ==================== 页面配置 ====================
@@ -48,8 +47,6 @@ def load_math_model():
     # 注意：Streamlit Cloud 只有 CPU，需强制使用 CPU，并开启低内存模式
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=torch.float32,      # CPU 推荐 float32
-        device_map="cpu",
         low_cpu_mem_usage=True
     )
     return tokenizer, model
