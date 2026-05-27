@@ -50,7 +50,7 @@ MODEL_NAME = "microsoft/trocr-small-handwritten"
 
 DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-V4-Pro"
 
-MAX_NEW_TOKENS = 128
+MAX_NEW_TOKENS = 256
 
 
 # =========================================================
@@ -217,7 +217,7 @@ def ask_deepseek(ocr_text, user_prompt):
             "role": "system",
 
             "content": (
-                "You are a professional math tutor."
+                "You are a professional math tutor, you will explain this question in 300 words."
             )
         },
 
@@ -238,6 +238,9 @@ Please:
 2. Solve step-by-step if possible
 3. Correct obvious OCR mistakes
 4. Keep explanations educational
+5. Use Markdown formatting
+6. Use $$...$$ for display math
+7. Use $...$ for inline math
 """
         }
     ]
@@ -250,10 +253,31 @@ Please:
 
         temperature=0.2,
 
-        max_tokens=512
+        max_tokens=1024
     )
 
     return completion.choices[0].message.content
+
+# =========================================================
+# Upload Config
+# =========================================================
+
+MAX_FILE_SIZE_MB = 50
+
+MAX_FILE_SIZE_BYTES = (
+    MAX_FILE_SIZE_MB * 1024 * 1024
+)
+
+ALLOWED_IMAGE_TYPES = [
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "bmp",
+    "tiff",
+    "tif",
+    "gif"
+]
 
 
 # =========================================================
@@ -261,10 +285,39 @@ Please:
 # =========================================================
 
 uploaded_file = st.file_uploader(
+
     "📤 Upload handwritten math image",
-    type=["png", "jpg", "jpeg", "webp"]
+
+    type=ALLOWED_IMAGE_TYPES,
+
+    help=f"Maximum file size: {MAX_FILE_SIZE_MB} MB"
 )
 
+
+# =========================================================
+# Validate Upload
+# =========================================================
+
+if uploaded_file is not None:
+
+    # File size validation
+    if uploaded_file.size > MAX_FILE_SIZE_BYTES:
+
+        st.error(
+            f"""
+File too large.
+
+Maximum allowed size:
+{MAX_FILE_SIZE_MB} MB
+
+Current file size:
+{uploaded_file.size / (1024 * 1024):.2f} MB
+"""
+        )
+
+        st.stop()
+
+    image = Image.open(uploaded_file)
 
 # =========================================================
 # Main Pipeline
@@ -370,7 +423,7 @@ if uploaded_file is not None:
 
             st.subheader("🧠 AI Tutor Response")
 
-            st.write(answer)
+            st.markdown(answer, unsafe_allow_html=True)
 
             combined = f"""
 OCR RESULT
