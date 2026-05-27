@@ -9,5 +9,3 @@ huggingface_hub>=0.24.0
 safetensors>=0.4.3
 numpy>=1.26.0
 torchvision
-
-llama-cpp-python
