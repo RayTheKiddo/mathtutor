@@ -2,14 +2,8 @@ import streamlit as st
 from pix2text import Pix2Text
 from PIL import Image
 
-import torch
-
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM
-)
-
-from peft import PeftModel
+from llama_cpp import Llama
+from huggingface_hub import hf_hub_download
 
 
 # =========================
@@ -23,7 +17,7 @@ st.set_page_config(
 
 
 # =========================
-# OCR模型
+# OCR 模型
 # =========================
 
 @st.cache_resource
@@ -35,40 +29,37 @@ def load_ocr_model():
 
 
 # =========================
-# 数学模型
+# 下载 GGUF
+# =========================
+
+@st.cache_resource
+def download_model():
+
+    model_path = hf_hub_download(
+        repo_id="RayLLLLL/magpie-math-q4-gguf",
+        filename="magpie-q4.gguf"
+    )
+
+    return model_path
+
+
+# =========================
+# 加载 GGUF
 # =========================
 
 @st.cache_resource
 def load_math_model():
 
-    BASE_MODEL = "Qwen/Qwen3-0.6B-Base"
+    model_path = download_model()
 
-    ADAPTER_MODEL = "RayLLLLL/magpie-math-finetuned-lora-v3"
-
-    # tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(
-        BASE_MODEL,
-        trust_remote_code=True
+    llm = Llama(
+        model_path=model_path,
+        n_ctx=2048,
+        n_threads=4,
+        verbose=False
     )
 
-    # base model
-    base_model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL,
-        torch_dtype=torch.float32,
-        device_map="cpu",
-        low_cpu_mem_usage=True,
-        trust_remote_code=True
-    )
-
-    # 加载LoRA
-    model = PeftModel.from_pretrained(
-        base_model,
-        ADAPTER_MODEL
-    )
-
-    model.eval()
-
-    return tokenizer, model
+    return llm
 
 
 # =========================
@@ -77,7 +68,7 @@ def load_math_model():
 
 def solve_math_problem(question):
 
-    tokenizer, model = load_math_model()
+    llm = load_math_model()
 
     prompt = f"""
 You are a professional math tutor.
@@ -90,29 +81,16 @@ Problem:
 Answer:
 """
 
-    inputs = tokenizer(
+    output = llm(
         prompt,
-        return_tensors="pt",
-        truncation=True,
-        max_length=512
+        max_tokens=256,
+        temperature=0.3,
+        stop=["Problem:"]
     )
 
-    with torch.no_grad():
+    answer = output["choices"][0]["text"]
 
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=256,
-            temperature=0.3,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id
-        )
-
-    response = tokenizer.decode(
-        outputs[0],
-        skip_special_tokens=True
-    )
-
-    return response
+    return answer
 
 
 # =========================
@@ -124,7 +102,7 @@ def main():
     st.title("📷 数学导师：拍照识题")
 
     st.write(
-        "上传数学题图片，OCR识别后，可调用 Magpie 数学模型自动解题。"
+        "上传数学题图片，OCR识别后，自动进行数学解题。"
     )
 
     uploaded_file = st.file_uploader(
@@ -165,8 +143,6 @@ def main():
         # 解题按钮
         if st.button("确认题目并开始解答"):
 
-            st.session_state['math_question'] = edited_text
-
             st.success("题目已保存！")
 
             st.subheader("当前题目")
@@ -174,7 +150,7 @@ def main():
             st.write(edited_text)
 
             # 解题
-            with st.spinner("Magpie 数学模型正在解题中..."):
+            with st.spinner("数学模型正在解题中..."):
 
                 answer = solve_math_problem(
                     edited_text
