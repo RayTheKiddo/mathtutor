@@ -1,4 +1,3 @@
-import os
 import re
 import streamlit as st
 from PIL import Image
@@ -24,8 +23,9 @@ st.set_page_config(
 )
 
 st.title("📐 AI Math OCR Tutor")
+
 st.caption(
-    "Upload handwritten math image → TrOCR OCR → DeepSeek explanation"
+    "Upload handwritten math image → OCR → Edit OCR → DeepSeek explanation"
 )
 
 
@@ -45,32 +45,76 @@ except:
 # CONFIG
 # =========================================================
 
-# 改成你自己的 HuggingFace fine-tuned model
-MODEL_NAME = "microsoft/trocr-small-handwritten"
+# 改成你自己的 fine-tuned model
+MODEL_NAME = "YOUR_USERNAME/YOUR_FINETUNED_MODEL"
 
-# DeepSeek via HuggingFace Inference Providers
 DEEPSEEK_MODEL = "deepseek-ai/DeepSeek-V4-Pro:novita"
 
-# generation settings
 MAX_NEW_TOKENS = 128
 
 
 # =========================================================
-# Load Secrets
+# Sidebar
 # =========================================================
 
-HF_TOKEN = None
+with st.sidebar:
 
-try:
-    HF_TOKEN = st.secrets["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"]
-except:
-    HF_TOKEN = os.getenv("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")
+    st.header("⚙️ Settings")
 
-if HF_TOKEN is None:
-    st.error(
-        "HF_TOKEN not found. "
-        "Please configure Streamlit secrets."
+    st.subheader("OCR Model")
+
+    st.code(MODEL_NAME)
+
+    st.subheader("LLM")
+
+    st.code(DEEPSEEK_MODEL)
+
+    st.divider()
+
+    user_prompt = st.text_area(
+        "Tutor Instruction",
+
+        value=(
+            "Please explain the math problem "
+            "step-by-step and give the final answer."
+        ),
+
+        height=150
     )
+
+    st.divider()
+
+    st.markdown(
+        """
+### Usage
+
+1. Input your HF Token
+2. Upload handwritten math image
+3. OCR recognizes math
+4. Edit OCR result manually
+5. Send corrected text to DeepSeek
+"""
+    )
+
+
+# =========================================================
+# HF TOKEN INPUT
+# =========================================================
+
+st.subheader("🔑 Hugging Face Token")
+
+hf_token = st.text_input(
+    "Enter your Hugging Face Token",
+    type="password",
+    placeholder="hf_xxxxxxxxxxxxxxxxx"
+)
+
+if not hf_token:
+
+    st.warning(
+        "Please input your Hugging Face token first."
+    )
+
     st.stop()
 
 
@@ -80,7 +124,7 @@ if HF_TOKEN is None:
 
 client = InferenceClient(
     provider="novita",
-    api_key=HF_TOKEN
+    api_key=hf_token
 )
 
 
@@ -124,7 +168,7 @@ def load_ocr_model():
 
 
 # =========================================================
-# OCR Inference
+# OCR
 # =========================================================
 
 def run_ocr(image, processor, model):
@@ -141,6 +185,7 @@ def run_ocr(image, processor, model):
     with torch.no_grad():
 
         generated_ids = model.generate(
+
             pixel_values,
 
             max_new_tokens=MAX_NEW_TOKENS,
@@ -161,7 +206,7 @@ def run_ocr(image, processor, model):
 
 
 # =========================================================
-# DeepSeek Tutor
+# DeepSeek
 # =========================================================
 
 def ask_deepseek(ocr_text, user_prompt):
@@ -170,28 +215,29 @@ def ask_deepseek(ocr_text, user_prompt):
 
         {
             "role": "system",
+
             "content": (
-                "You are a professional math tutor. "
-                "You help students understand OCR'd math expressions."
+                "You are a professional math tutor."
             )
         },
 
         {
             "role": "user",
+
             "content": f"""
 OCR recognized this math content:
 
 {ocr_text}
 
-User request:
+User instruction:
 
 {user_prompt}
 
 Please:
-1. Correct OCR mistakes if obvious
-2. Explain the math clearly
-3. Solve step-by-step if possible
-4. Keep the explanation concise but educational
+1. Explain the math clearly
+2. Solve step-by-step if possible
+3. Correct obvious OCR mistakes
+4. Keep explanations educational
 """
         }
     ]
@@ -211,49 +257,18 @@ Please:
 
 
 # =========================================================
-# Sidebar
-# =========================================================
-
-with st.sidebar:
-
-    st.header("Settings")
-
-    st.write("OCR Model:")
-    st.code(MODEL_NAME)
-
-    st.write("LLM:")
-    st.code(DEEPSEEK_MODEL)
-
-    user_prompt = st.text_area(
-        "Tutor Instruction",
-        value=(
-            "Please explain the math problem "
-            "step-by-step and give the final answer."
-        ),
-        height=150
-    )
-
-    st.divider()
-
-    st.markdown(
-        """
-### Usage
-
-1. Upload handwritten math image
-2. Run OCR
-3. DeepSeek explains the result
-"""
-    )
-
-
-# =========================================================
-# Main UI
+# Upload Image
 # =========================================================
 
 uploaded_file = st.file_uploader(
-    "Upload handwritten math image",
+    "📤 Upload handwritten math image",
     type=["png", "jpg", "jpeg", "webp"]
 )
+
+
+# =========================================================
+# Main Pipeline
+# =========================================================
 
 if uploaded_file is not None:
 
@@ -265,43 +280,30 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
-    col1, col2 = st.columns(2)
+    # =====================================================
+    # OCR BUTTON
+    # =====================================================
 
-    with col1:
-        ocr_button = st.button(
-            "Run OCR",
-            use_container_width=True
-        )
-
-    with col2:
-        tutor_button = st.button(
-            "Run OCR + AI Tutor",
-            use_container_width=True
-        )
-
-    if ocr_button or tutor_button:
-
-        # =================================================
-        # Load model
-        # =================================================
+    if st.button(
+        "🚀 Run OCR",
+        use_container_width=True
+    ):
 
         with st.spinner("Loading OCR model..."):
 
             processor, model = load_ocr_model()
 
-        # =================================================
-        # OCR
-        # =================================================
-
         with st.spinner("Running OCR..."):
 
             try:
 
-                ocr_text = run_ocr(
+                ocr_result = run_ocr(
                     image,
                     processor,
                     model
                 )
+
+                st.session_state["ocr_result"] = ocr_result
 
             except Exception as e:
 
@@ -309,18 +311,31 @@ if uploaded_file is not None:
 
                 st.stop()
 
-        # =================================================
-        # Display OCR
-        # =================================================
+    # =====================================================
+    # OCR EDITOR
+    # =====================================================
 
-        st.subheader("📄 OCR Result")
+    if "ocr_result" in st.session_state:
 
-        st.code(ocr_text)
+        st.subheader("📄 OCR Result (Editable)")
+
+        edited_ocr = st.text_area(
+
+            "You can manually edit OCR result before sending to DeepSeek",
+
+            value=st.session_state["ocr_result"],
+
+            height=200
+        )
+
+        # update session state
+        st.session_state["edited_ocr"] = edited_ocr
 
         st.download_button(
+
             label="Download OCR Result",
 
-            data=ocr_text.encode("utf-8"),
+            data=edited_ocr.encode("utf-8"),
 
             file_name="ocr_result.txt",
 
@@ -328,17 +343,20 @@ if uploaded_file is not None:
         )
 
         # =================================================
-        # DeepSeek
+        # SEND TO DEEPSEEK
         # =================================================
 
-        if tutor_button:
+        if st.button(
+            "🧠 Send to DeepSeek",
+            use_container_width=True
+        ):
 
             with st.spinner("Asking DeepSeek..."):
 
                 try:
 
                     answer = ask_deepseek(
-                        ocr_text,
+                        st.session_state["edited_ocr"],
                         user_prompt
                     )
 
@@ -358,7 +376,7 @@ if uploaded_file is not None:
 OCR RESULT
 ==========
 
-{ocr_text}
+{st.session_state["edited_ocr"]}
 
 
 AI TUTOR RESPONSE
