@@ -1,3 +1,9 @@
+import subprocess, sys
+
+# 强制卸载可能被悄悄安装的普通版 OpenCV，确保只用 headless 版
+subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"], check=False)
+subprocess.run([sys.executable, "-m", "pip", "install", "--force-reinstall", "opencv-python-headless"], check=True)
+
 import streamlit as st
 from pix2text import Pix2Text
 from PIL import Image
