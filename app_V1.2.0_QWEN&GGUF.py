@@ -1,4 +1,3 @@
-import os
 import re
 from io import BytesIO
 import base64
@@ -7,7 +6,6 @@ import streamlit as st
 from PIL import Image
 
 from huggingface_hub import InferenceClient
-from llama_cpp import Llama
 
 
 # =========================================================
@@ -49,9 +47,8 @@ except Exception:
 # OCR: Qwen image-to-text API
 OCR_MODEL = "Qwen/Qwen3.6-27B:featherless-ai"
 
-# Local GGUF model for math solving
-MATH_MODEL_REPO = "RayLLLLL/magpie-math-q4-gguf"
-MATH_MODEL_FILE = "magpie-q4.gguf"
+# Math solver API endpoint
+MATH_MODEL_ENDPOINT = "https://ga5o2knqu8qmb2o9.eu-west-1.aws.endpoints.huggingface.cloud"
 
 MAX_NEW_TOKENS = 1024
 
@@ -66,8 +63,8 @@ with st.sidebar:
     st.subheader("OCR Model")
     st.code(OCR_MODEL)
 
-    st.subheader("Math Solver")
-    st.code(f"{MATH_MODEL_REPO}\n{MATH_MODEL_FILE}")
+    st.subheader("Math Solver API")
+    st.code(MATH_MODEL_ENDPOINT)
 
     st.divider()
 
@@ -90,7 +87,7 @@ with st.sidebar:
 2. Upload handwritten math image
 3. Qwen OCR recognizes math
 4. Edit OCR result manually
-5. Send corrected text to the local Math Solver
+5. Send corrected text to the remote Math Solver API
 """
     )
 
@@ -116,7 +113,7 @@ if not hf_token:
 # Clients
 # =========================================================
 
-# Only used for Qwen OCR
+# Only used for Qwen OCR and the math solver endpoint
 client = InferenceClient(api_key=hf_token)
 
 
@@ -206,26 +203,19 @@ def run_qwen_ocr(uploaded_bytes: bytes, mime_type: str) -> str:
 
 
 # =========================================================
-# Load Local GGUF Model
+# Math Solver API Client
 # =========================================================
 
 @st.cache_resource
-def load_math_model():
-    llm = Llama.from_pretrained(
-        repo_id=MATH_MODEL_REPO,
-        filename=MATH_MODEL_FILE,
-        n_ctx=4096,
-        n_threads=max(1, (os.cpu_count() or 1)),
-        verbose=False,
-    )
-    return llm
+def load_math_client(token: str):
+    return InferenceClient(api_key=token)
 
 
 # =========================================================
 # Math Solver
 # =========================================================
 
-def ask_math_model(llm, ocr_text: str, user_prompt: str) -> str:
+def ask_math_model(math_client, ocr_text: str, user_prompt: str) -> str:
     prompt = f"""You are a professional math tutor.
 
 Math problem:
@@ -243,16 +233,26 @@ Requirements:
 6. Be clear and concise
 """
 
-    completion = llm.create_completion(
-        prompt=prompt,
+    completion = math_client.chat.completions.create(
+        model=MATH_MODEL_ENDPOINT,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a professional math tutor."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
         max_tokens=MAX_NEW_TOKENS,
         temperature=0.2,
         top_p=0.95,
-        repeat_penalty=1.1,
-        stop=["</s>"]
+        presence_penalty=0.0,
+        frequency_penalty=0.0,
     )
 
-    return completion["choices"][0]["text"].strip()
+    return completion.choices[0].message.content.strip()
 
 
 # =========================================================
@@ -361,24 +361,24 @@ if uploaded_file is not None:
         )
 
         # =================================================
-        # SEND TO LOCAL MATH SOLVER
+        # SEND TO REMOTE MATH SOLVER API
         # =================================================
 
         if st.button(
             "🧠 Solve Math Problem",
             use_container_width=True
         ):
-            with st.spinner("Loading local GGUF model..."):
+            with st.spinner("Connecting to remote math solver API..."):
                 try:
-                    llm = load_math_model()
+                    math_client = load_math_client(hf_token)
                 except Exception as e:
-                    st.error(f"Failed to load local math model:\n\n{e}")
+                    st.error(f"Failed to initialize math solver client:\n\n{e}")
                     st.stop()
 
             with st.spinner("Solving..."):
                 try:
                     answer = ask_math_model(
-                        llm,
+                        math_client,
                         st.session_state["edited_ocr"],
                         user_prompt
                     )
