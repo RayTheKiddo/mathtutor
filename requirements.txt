@@ -1,12 +1,13 @@
 streamlit==1.35.0
 
+torch
 transformers
 accelerate
+peft
+sentencepiece
+einops
 
 pillow
 
 pix2text
 opencv-python-headless
-
-sentencepiece
-einops
