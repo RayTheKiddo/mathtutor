@@ -50,7 +50,7 @@ OCR_MODEL = "Qwen/Qwen3.6-27B:featherless-ai"
 # Math solver API endpoint
 MATH_MODEL_ENDPOINT = "https://ga5o2knqu8qmb2o9.eu-west-1.aws.endpoints.huggingface.cloud"
 
-MAX_NEW_TOKENS = 1024
+MAX_NEW_TOKENS = 4096
 
 
 # =========================================================
