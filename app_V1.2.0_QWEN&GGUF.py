@@ -216,21 +216,28 @@ def load_math_client(token: str):
 # =========================================================
 
 def ask_math_model(math_client, ocr_text: str, user_prompt: str) -> str:
-    prompt = f"""You are a professional math tutor.
-
-Math problem:
-{ocr_text}
-
-Instruction:
-{user_prompt}
-
-Requirements:
+    prompt = f"""Requirements:
 1. Solve step-by-step
 2. Correct obvious OCR mistakes
-3. Use Markdown formatting
-4. Use $$...$$ for display math
-5. Use $...$ for inline math
-6. Be clear and concise
+
+IMPORTANT FORMATTING RULES:
+
+- All displayed equations MUST use:
+$$ equation $$
+
+- All inline equations MUST use:
+$equation$
+
+- NEVER use:
+[ equation ]
+
+- NEVER use:
+\( equation \)
+
+- NEVER use:
+\[ equation \]
+
+Return valid Markdown only.
 """
 
     completion = math_client.chat.completions.create(
