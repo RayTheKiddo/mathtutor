@@ -139,6 +139,26 @@ def clean_ocr_text(text: str) -> str:
     return text.strip()
 
 
+def fix_math_format(text):
+    # \[ \] → $$ $$
+    text = re.sub(
+        r"\\\[(.*?)\\\]",
+        r"$$\1$$",
+        text,
+        flags=re.DOTALL
+    )
+
+    # [ ] → $$ $$  （有些模型会直接输出这种方括号包公式）
+    text = re.sub(
+        r"\[\s*(.*?)\s*\]",
+        r"$$\1$$",
+        text,
+        flags=re.DOTALL
+    )
+
+    return text
+
+
 def image_bytes_to_data_url(image_bytes: bytes, mime_type: str) -> str:
     encoded = base64.b64encode(image_bytes).decode("utf-8")
     return f"data:{mime_type};base64,{encoded}"
@@ -216,28 +236,21 @@ def load_math_client(token: str):
 # =========================================================
 
 def ask_math_model(math_client, ocr_text: str, user_prompt: str) -> str:
-    prompt = f"""Requirements:
+    prompt = f"""You are a professional math tutor.
+
+Math problem:
+{ocr_text}
+
+Instruction:
+{user_prompt}
+
+Requirements:
 1. Solve step-by-step
 2. Correct obvious OCR mistakes
-
-IMPORTANT FORMATTING RULES:
-
-- All displayed equations MUST use:
-$$ equation $$
-
-- All inline equations MUST use:
-$equation$
-
-- NEVER use:
-[ equation ]
-
-- NEVER use:
-\( equation \)
-
-- NEVER use:
-\[ equation \]
-
-Return valid Markdown only.
+3. Use Markdown formatting
+4. Use $$...$$ for display math
+5. Use $...$ for inline math
+6. Be clear and concise
 """
 
     completion = math_client.chat.completions.create(
@@ -389,6 +402,7 @@ if uploaded_file is not None:
                         st.session_state["edited_ocr"],
                         user_prompt
                     )
+                    answer = fix_math_format(answer)
                 except Exception as e:
                     st.error(f"Math model failed:\n\n{e}")
                     st.stop()
